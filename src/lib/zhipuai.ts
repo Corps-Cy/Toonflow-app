@@ -138,13 +138,34 @@ const vendor: VendorConfig = {
     },
     {
       key: "baseUrl",
-      label: "自定义接口地址",
+      label: "默认接口地址",
       type: "url",
       required: false,
-      placeholder: "留空使用默认 https://open.bigmodel.cn/api/paas/v4",
+      placeholder: "留空使用官方 https://open.bigmodel.cn/api/paas/v4",
+    },
+    {
+      key: "textBaseUrl",
+      label: "文本模型接口地址",
+      type: "url",
+      required: false,
+      placeholder: "留空使用默认接口地址",
+    },
+    {
+      key: "imageBaseUrl",
+      label: "图像模型接口地址",
+      type: "url",
+      required: false,
+      placeholder: "留空使用默认接口地址",
+    },
+    {
+      key: "videoBaseUrl",
+      label: "视频模型接口地址",
+      type: "url",
+      required: false,
+      placeholder: "留空使用默认接口地址",
     },
   ],
-  inputValues: { apiKey: "", baseUrl: "" },
+  inputValues: { apiKey: "", baseUrl: "", textBaseUrl: "", imageBaseUrl: "", videoBaseUrl: "" },
   models: [
     // ---- 文本模型 ----
     { name: "GLM-5", modelName: "glm-5", type: "text", think: true },
@@ -210,10 +231,13 @@ const vendor: VendorConfig = {
 
 const DEFAULT_API_BASE = "https://open.bigmodel.cn/api/paas/v4";
 
-const getApiBase = () => {
-  const custom = vendor.inputValues.baseUrl?.trim();
-  return custom || DEFAULT_API_BASE;
+const getGlobalBase = () => {
+  return vendor.inputValues.baseUrl?.trim() || DEFAULT_API_BASE;
 };
+
+const getTextBase = () => vendor.inputValues.textBaseUrl?.trim() || getGlobalBase();
+const getImageBase = () => vendor.inputValues.imageBaseUrl?.trim() || getGlobalBase();
+const getVideoBase = () => vendor.inputValues.videoBaseUrl?.trim() || getGlobalBase();
 
 const getHeaders = () => {
   const apiKey = vendor.inputValues.apiKey.replace(/^Bearer\s+/i, "");
@@ -268,7 +292,7 @@ const isGlmImage = (modelName: string) => modelName === "glm-image";
 const textRequest = (model: TextModel, think: boolean, thinkLevel: 0 | 1 | 2 | 3) => {
   if (!vendor.inputValues.apiKey) throw new Error("缺少API Key");
   const apiKey = vendor.inputValues.apiKey.replace(/^Bearer\s+/i, "");
-  const customBase = vendor.inputValues.baseUrl?.trim();
+  const customBase = vendor.inputValues.textBaseUrl?.trim() || vendor.inputValues.baseUrl?.trim();
   return createZhipu({ apiKey, baseURL: customBase || undefined }).chat(model.modelName);
 };
 
@@ -296,7 +320,7 @@ const imageRequest = async (config: ImageConfig, model: ImageModel): Promise<str
 
   logger(`[智谱AI] 开始生成图片，模型：${model.modelName}，尺寸：${requestBody.size}`);
 
-  const resp = await axios.post(`${getApiBase()}/images/generations`, requestBody, { headers });
+  const resp = await axios.post(`${getImageBase()}/images/generations`, requestBody, { headers });
 
   if (resp.data.error) {
     throw new Error(`图片生成失败：${resp.data.error.message}`);
@@ -364,7 +388,7 @@ const videoRequest = async (config: VideoConfig, model: VideoModel): Promise<str
   }
 
   logger(`[智谱AI] 提交视频生成任务，模型：${model.modelName}`);
-  const submitResp = await axios.post(`${getApiBase()}/videos/generations`, requestBody, { headers });
+  const submitResp = await axios.post(`${getVideoBase()}/videos/generations`, requestBody, { headers });
 
   if (submitResp.data.error) {
     throw new Error(`视频任务提交失败：${submitResp.data.error.message}`);
@@ -380,7 +404,7 @@ const videoRequest = async (config: VideoConfig, model: VideoModel): Promise<str
   // 轮询异步结果
   const pollResult = await pollTask(
     async (): Promise<PollResult> => {
-      const queryResp = await axios.get(`${getApiBase()}/async-result/${taskId}`, { headers });
+      const queryResp = await axios.get(`${getVideoBase()}/async-result/${taskId}`, { headers });
       const data = queryResp.data;
 
       // 智谱异步结果可能直接包含 video_result
