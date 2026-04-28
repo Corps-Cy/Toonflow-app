@@ -168,28 +168,31 @@ const vendor: VendorConfig = {
   inputValues: { apiKey: "", baseUrl: "", textBaseUrl: "", imageBaseUrl: "", videoBaseUrl: "" },
   models: [
     // ---- 文本模型 ----
-    { name: "GLM-5", modelName: "glm-5", type: "text", think: true },
-    { name: "GLM-5.1", modelName: "glm-5.1", type: "text", think: true },
-    { name: "GLM-4-Plus", modelName: "glm-4-plus", type: "text", think: false },
-    { name: "GLM-4-Flash", modelName: "glm-4-flash", type: "text", think: false },
+    { name: "GLM-5", modelName: "glm-5", type: "text", think: true, baseUrl: "" },
+    { name: "GLM-5.1", modelName: "glm-5.1", type: "text", think: true, baseUrl: "" },
+    { name: "GLM-4-Plus", modelName: "glm-4-plus", type: "text", think: false, baseUrl: "" },
+    { name: "GLM-4-Flash", modelName: "glm-4-flash", type: "text", think: false, baseUrl: "" },
     // ---- 图像模型 ----
     {
       name: "GLM-Image (旗舰)",
       modelName: "glm-image",
       type: "image",
       mode: ["text"],
+      baseUrl: "",
     },
     {
       name: "CogView-4",
       modelName: "cogview-4-250304",
       type: "image",
       mode: ["text"],
+      baseUrl: "",
     },
     {
       name: "CogView-3-Flash (免费)",
       modelName: "cogview-3-flash",
       type: "image",
       mode: ["text"],
+      baseUrl: "",
     },
     // ---- 视频模型 ----
     {
@@ -201,6 +204,7 @@ const vendor: VendorConfig = {
       durationResolutionMap: [
         { duration: [5, 10], resolution: ["720p", "1080p", "4k"] },
       ],
+      baseUrl: "",
     },
     {
       name: "CogVideoX-2",
@@ -211,6 +215,7 @@ const vendor: VendorConfig = {
       durationResolutionMap: [
         { duration: [5], resolution: ["720p", "1080p", "4k"] },
       ],
+      baseUrl: "",
     },
     {
       name: "CogVideoX-Flash (免费)",
@@ -221,6 +226,7 @@ const vendor: VendorConfig = {
       durationResolutionMap: [
         { duration: [5], resolution: ["720p", "1080p", "4k"] },
       ],
+      baseUrl: "",
     },
   ],
 };
@@ -292,7 +298,7 @@ const isGlmImage = (modelName: string) => modelName === "glm-image";
 const textRequest = (model: TextModel, think: boolean, thinkLevel: 0 | 1 | 2 | 3) => {
   if (!vendor.inputValues.apiKey) throw new Error("缺少API Key");
   const apiKey = vendor.inputValues.apiKey.replace(/^Bearer\s+/i, "");
-  const customBase = vendor.inputValues.textBaseUrl?.trim() || vendor.inputValues.baseUrl?.trim();
+  const customBase = (model as any).baseUrl?.trim() || vendor.inputValues.textBaseUrl?.trim() || vendor.inputValues.baseUrl?.trim();
   return createZhipu({ apiKey, baseURL: customBase || undefined }).chat(model.modelName);
 };
 
@@ -320,7 +326,8 @@ const imageRequest = async (config: ImageConfig, model: ImageModel): Promise<str
 
   logger(`[智谱AI] 开始生成图片，模型：${model.modelName}，尺寸：${requestBody.size}`);
 
-  const resp = await axios.post(`${getImageBase()}/images/generations`, requestBody, { headers });
+  const imgBase = (model as any).baseUrl?.trim() || getImageBase();
+  const resp = await axios.post(`${imgBase}/images/generations`, requestBody, { headers });
 
   if (resp.data.error) {
     throw new Error(`图片生成失败：${resp.data.error.message}`);
@@ -388,7 +395,8 @@ const videoRequest = async (config: VideoConfig, model: VideoModel): Promise<str
   }
 
   logger(`[智谱AI] 提交视频生成任务，模型：${model.modelName}`);
-  const submitResp = await axios.post(`${getVideoBase()}/videos/generations`, requestBody, { headers });
+  const vidBase = (model as any).baseUrl?.trim() || getVideoBase();
+  const submitResp = await axios.post(`${vidBase}/videos/generations`, requestBody, { headers });
 
   if (submitResp.data.error) {
     throw new Error(`视频任务提交失败：${submitResp.data.error.message}`);
@@ -404,7 +412,7 @@ const videoRequest = async (config: VideoConfig, model: VideoModel): Promise<str
   // 轮询异步结果
   const pollResult = await pollTask(
     async (): Promise<PollResult> => {
-      const queryResp = await axios.get(`${getVideoBase()}/async-result/${taskId}`, { headers });
+      const queryResp = await axios.get(`${vidBase}/async-result/${taskId}`, { headers });
       const data = queryResp.data;
 
       // 智谱异步结果可能直接包含 video_result

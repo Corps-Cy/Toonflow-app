@@ -16,12 +16,14 @@ export default router.post(
         modelName: z.string(),
         type: z.literal("text"),
         think: z.boolean(),
+        baseUrl: z.string().optional(),
       }),
       z.object({
         name: z.string(),
         modelName: z.string(),
         type: z.literal("image"),
         mode: z.array(z.enum(["text", "singleImage", "multiReference"])),
+        baseUrl: z.string().optional(),
       }),
       z.object({
         name: z.string(),
