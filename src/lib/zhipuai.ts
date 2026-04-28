@@ -1,11 +1,12 @@
 /**
  * Toonflow 智谱AI供应商适配
- * @version 1.0
+ * @version 1.1
  * @description 支持文生图(CogView-4/GLM-Image)、图生视频(CogVideoX)、文本模型(GLM系列)
+ *              支持自定义API地址（适配 coding plan 等不同套餐端点）
  * @author Corps-Cy
  *
  * API文档: https://docs.bigmodel.cn/cn/api/introduction
- * 端点: https://open.bigmodel.cn/api/paas/v4
+ * 默认端点: https://open.bigmodel.cn/api/paas/v4
  */
 
 // ============================================================
@@ -122,7 +123,7 @@ declare const exports: {
 
 const vendor: VendorConfig = {
   id: "zhipuai",
-  version: "1.0",
+  version: "1.1",
   name: "智谱AI",
   author: "Corps-Cy",
   description:
@@ -135,8 +136,15 @@ const vendor: VendorConfig = {
       required: true,
       placeholder: "在 open.bigmodel.cn 获取",
     },
+    {
+      key: "baseUrl",
+      label: "自定义接口地址",
+      type: "url",
+      required: false,
+      placeholder: "留空使用默认 https://open.bigmodel.cn/api/paas/v4",
+    },
   ],
-  inputValues: { apiKey: "" },
+  inputValues: { apiKey: "", baseUrl: "" },
   models: [
     // ---- 文本模型 ----
     { name: "GLM-5", modelName: "glm-5", type: "text", think: true },
@@ -200,7 +208,12 @@ const vendor: VendorConfig = {
 // 辅助工具
 // ============================================================
 
-const API_BASE = "https://open.bigmodel.cn/api/paas/v4";
+const DEFAULT_API_BASE = "https://open.bigmodel.cn/api/paas/v4";
+
+const getApiBase = () => {
+  const custom = vendor.inputValues.baseUrl?.trim();
+  return custom || DEFAULT_API_BASE;
+};
 
 const getHeaders = () => {
   const apiKey = vendor.inputValues.apiKey.replace(/^Bearer\s+/i, "");
@@ -255,7 +268,8 @@ const isGlmImage = (modelName: string) => modelName === "glm-image";
 const textRequest = (model: TextModel, think: boolean, thinkLevel: 0 | 1 | 2 | 3) => {
   if (!vendor.inputValues.apiKey) throw new Error("缺少API Key");
   const apiKey = vendor.inputValues.apiKey.replace(/^Bearer\s+/i, "");
-  return createZhipu({ apiKey }).chat(model.modelName);
+  const customBase = vendor.inputValues.baseUrl?.trim();
+  return createZhipu({ apiKey, baseURL: customBase || undefined }).chat(model.modelName);
 };
 
 // ============================================================
@@ -282,7 +296,7 @@ const imageRequest = async (config: ImageConfig, model: ImageModel): Promise<str
 
   logger(`[智谱AI] 开始生成图片，模型：${model.modelName}，尺寸：${requestBody.size}`);
 
-  const resp = await axios.post(`${API_BASE}/images/generations`, requestBody, { headers });
+  const resp = await axios.post(`${getApiBase()}/images/generations`, requestBody, { headers });
 
   if (resp.data.error) {
     throw new Error(`图片生成失败：${resp.data.error.message}`);
@@ -350,7 +364,7 @@ const videoRequest = async (config: VideoConfig, model: VideoModel): Promise<str
   }
 
   logger(`[智谱AI] 提交视频生成任务，模型：${model.modelName}`);
-  const submitResp = await axios.post(`${API_BASE}/videos/generations`, requestBody, { headers });
+  const submitResp = await axios.post(`${getApiBase()}/videos/generations`, requestBody, { headers });
 
   if (submitResp.data.error) {
     throw new Error(`视频任务提交失败：${submitResp.data.error.message}`);
@@ -366,7 +380,7 @@ const videoRequest = async (config: VideoConfig, model: VideoModel): Promise<str
   // 轮询异步结果
   const pollResult = await pollTask(
     async (): Promise<PollResult> => {
-      const queryResp = await axios.get(`${API_BASE}/async-result/${taskId}`, { headers });
+      const queryResp = await axios.get(`${getApiBase()}/async-result/${taskId}`, { headers });
       const data = queryResp.data;
 
       // 智谱异步结果可能直接包含 video_result
