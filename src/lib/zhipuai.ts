@@ -26,6 +26,7 @@ interface TextModel {
   modelName: string;
   type: "text";
   think: boolean;
+  baseUrl?: string;
 }
 
 interface ImageModel {
@@ -34,6 +35,7 @@ interface ImageModel {
   type: "image";
   mode: ("text" | "singleImage" | "multiReference")[];
   associationSkills?: string;
+  baseUrl?: string;
 }
 
 interface VideoModel {
@@ -44,6 +46,7 @@ interface VideoModel {
   associationSkills?: string;
   audio: "optional" | false | true;
   durationResolutionMap: { duration: number[]; resolution: string[] }[];
+  baseUrl?: string;
 }
 
 interface TTSModel {
